@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/yourorg/go-mvc-app/src/config"
+	"go-helpme-booking/src/config"
 )
 
 type APIClient struct {
@@ -73,18 +73,20 @@ func (c *APIClient) Delete(ctx context.Context, path string, dest interface{}) (
 }
 
 func (c *APIClient) do(ctx context.Context, method, path string, body interface{}, dest interface{}) (*APIResponse, error) {
+	url := c.baseURL + path
+
 	var reqBody io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
 		if err != nil {
-			return nil, fmt.Errorf("api_client: marshal body: %w", err)
+			return nil, fmt.Errorf("api_client: marshal body for %s %s: %w", method, url, err)
 		}
 		reqBody = bytes.NewBuffer(b)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
-		return nil, fmt.Errorf("api_client: build request: %w", err)
+		return nil, fmt.Errorf("api_client: build request for %s %s: %w", method, url, err)
 	}
 
 	for k, v := range c.headers {
@@ -93,13 +95,13 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("api_client: execute request: %w", err)
+		return nil, fmt.Errorf("api_client: execute request %s %s: %w", method, url, err)
 	}
 	defer resp.Body.Close()
 
 	rawBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("api_client: read response: %w", err)
+		return nil, fmt.Errorf("api_client: read response from %s %s: %w", method, url, err)
 	}
 
 	apiResp := &APIResponse{
@@ -109,12 +111,12 @@ func (c *APIClient) do(ctx context.Context, method, path string, body interface{
 	}
 
 	if resp.StatusCode >= 400 {
-		return apiResp, fmt.Errorf("api_client: upstream error %d: %s", resp.StatusCode, string(rawBody))
+		return apiResp, fmt.Errorf("api_client: upstream error %d from %s %s: %s", resp.StatusCode, method, url, string(rawBody))
 	}
 
 	if dest != nil && len(rawBody) > 0 {
 		if err := json.Unmarshal(rawBody, dest); err != nil {
-			return apiResp, fmt.Errorf("api_client: decode response: %w", err)
+			return apiResp, fmt.Errorf("api_client: decode response from %s %s: %w", method, url, err)
 		}
 	}
 

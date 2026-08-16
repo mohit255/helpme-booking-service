@@ -4,7 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourorg/go-mvc-app/src/config"
+	"go-helpme-booking/src/config"
 )
 
 type Response struct {

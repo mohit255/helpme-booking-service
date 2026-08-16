@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourorg/go-mvc-app/src/config"
+	"go-helpme-booking/src/config"
 	"golang.org/x/crypto/bcrypt"
 )
 

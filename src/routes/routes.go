@@ -7,12 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
-	"github.com/yourorg/go-mvc-app/src/config"
-	"github.com/yourorg/go-mvc-app/src/controllers"
-	"github.com/yourorg/go-mvc-app/src/middleware"
-	"github.com/yourorg/go-mvc-app/src/repositories"
-	"github.com/yourorg/go-mvc-app/src/services"
-	"github.com/yourorg/go-mvc-app/src/utils/database"
+	"go-helpme-booking/src/clients"
+	"go-helpme-booking/src/config"
+	"go-helpme-booking/src/controllers"
+	"go-helpme-booking/src/middleware"
+	"go-helpme-booking/src/repositories"
+	"go-helpme-booking/src/services"
+	"go-helpme-booking/src/utils/database"
 )
 
 type healthResponse struct {
@@ -60,35 +61,24 @@ func Setup(r *gin.Engine, drainer *middleware.Drainer) {
 	}
 
 	// wire up dependencies
-	userRepo := repositories.NewUserRepository()
-	userSvc := services.NewUserService(userRepo)
-	userCtrl := controllers.NewUserController(userSvc)
-
-	authSvc := services.NewAuthService(userRepo)
-	authCtrl := controllers.NewAuthController(authSvc, userSvc)
+	userClient := clients.NewUserServiceClient()
+	bookingRepo := repositories.NewBookingRepository()
+	bookingSvc := services.NewBookingService(bookingRepo)
+	bookingCtrl := controllers.NewBookingController(userClient, bookingSvc)
 
 	v1 := r.Group(config.APIV1)
 	{
 		// Public endpoints
 		v1.GET("/health", Health)
 
-		auth := v1.Group("/auth")
-		{
-			auth.POST("/signup", authCtrl.Signup)
-			auth.POST("/login", authCtrl.Login)
-		}
-
 		// Protected endpoints — require valid JWT
 		protected := v1.Group("")
 		protected.Use(middleware.Authenticate())
 		{
-			users := protected.Group("/users")
+			bookings := protected.Group("/bookings")
 			{
-				users.GET("", userCtrl.List)
-				users.GET("/:id", userCtrl.GetByID)
-				users.PATCH("/:id", userCtrl.Update)
-				// DELETE requires admin role
-				users.DELETE("/:id", middleware.RequireRole(config.RoleAdmin), userCtrl.Delete)
+				bookings.GET("", bookingCtrl.List)
+				bookings.POST("", bookingCtrl.Create)
 			}
 		}
 	}

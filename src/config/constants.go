@@ -45,6 +45,10 @@ const (
 	HeaderRequestID     = "X-Request-ID"
 	HeaderAuthorization = "Authorization"
 	HeaderContentType   = "Content-Type"
+	HeaderServiceName   = "X-Service-Name"
+
+	// HTTP retry defaults
+	DefaultHTTPRetry = 1
 
 	// API versions
 	APIV1 = "/api/v1"

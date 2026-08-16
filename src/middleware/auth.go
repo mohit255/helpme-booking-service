@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourorg/go-mvc-app/src/config"
-	"github.com/yourorg/go-mvc-app/src/helpers"
-	"github.com/yourorg/go-mvc-app/src/services"
+	"go-helpme-booking/src/config"
+	"go-helpme-booking/src/helpers"
+	"go-helpme-booking/src/services"
 )
 
 // Authenticate validates the Bearer JWT token and injects userID + role into context.

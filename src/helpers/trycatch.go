@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime/debug"
 
-	"github.com/yourorg/go-mvc-app/src/utils/logger"
+	"go-helpme-booking/src/utils/logger"
 	"go.uber.org/zap"
 )
 

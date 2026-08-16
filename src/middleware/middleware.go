@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourorg/go-mvc-app/src/config"
-	"github.com/yourorg/go-mvc-app/src/helpers"
-	"github.com/yourorg/go-mvc-app/src/utils/logger"
+	"go-helpme-booking/src/config"
+	"go-helpme-booking/src/helpers"
+	"go-helpme-booking/src/utils/logger"
 	"go.uber.org/zap"
 )
 
@@ -30,11 +30,15 @@ func RequestID() gin.HandlerFunc {
 }
 
 // Logger logs method, path, status, latency, and request ID for every request.
+// It also prints a one-line "METHOD URI | LATENCY STATUS" summary to the terminal
+// on every request, independent of the LOGS_TARGETS-configured backends.
 func Logger() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		start := time.Now()
 		c.Next()
 		latency := time.Since(start)
+
+		fmt.Printf("%s %s | %s %d\n", c.Request.Method, c.Request.URL.RequestURI(), latency, c.Writer.Status())
 
 		log := logger.WithRequestID(c.GetString(config.CtxRequestID))
 		log.Info("request",

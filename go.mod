@@ -1,4 +1,4 @@
-module github.com/yourorg/go-mvc-app
+module go-helpme-booking
 
 go 1.25
 

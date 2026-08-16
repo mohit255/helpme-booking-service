@@ -1,5 +1,18 @@
 basePath: /api/v1
 definitions:
+  clients.User:
+    properties:
+      email:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      name:
+        type: string
+      role:
+        type: string
+    type: object
   helpers.Meta:
     properties:
       page:
@@ -22,21 +35,23 @@ definitions:
       success:
         type: boolean
     type: object
-  models.User:
+  models.Booking:
     properties:
       created_at:
         type: string
-      email:
-        type: string
       id:
         type: string
-      is_active:
-        type: boolean
-      name:
+      notes:
         type: string
-      role:
+      scheduled_at:
+        type: string
+      service_name:
+        type: string
+      status:
         type: string
       updated_at:
+        type: string
+      user_id:
         type: string
     type: object
   routes.healthResponse:
@@ -51,77 +66,44 @@ definitions:
         example: ok
         type: string
     type: object
-  services.CreateUserInput:
+  services.CreateBookingInput:
     properties:
-      email:
+      notes:
+        example: Leaky faucet
         type: string
-      name:
-        maxLength: 100
-        minLength: 2
+      scheduled_at:
+        example: "2026-08-20T10:00:00Z"
         type: string
-      password:
-        minLength: 8
-        type: string
-      role:
+      service_name:
+        example: Plumbing repair
         type: string
     required:
-    - email
-    - name
-    - password
-    type: object
-  services.LoginInput:
-    properties:
-      email:
-        type: string
-      password:
-        type: string
-    required:
-    - email
-    - password
-    type: object
-  services.TokenResponse:
-    properties:
-      expires_at:
-        type: string
-      token:
-        type: string
-    type: object
-  services.UpdateUserInput:
-    properties:
-      is_active:
-        type: boolean
-      name:
-        maxLength: 100
-        minLength: 2
-        type: string
-      role:
-        type: string
+    - scheduled_at
+    - service_name
     type: object
 host: localhost:8080
 info:
   contact:
     email: mohit.chack@rosstechnologies.in
     name: API Support
-  description: Structured Go MVC REST API with PostgreSQL and GORM.
+  description: Owns bookings (Postgres via GORM). Resolves user_id against the User
+    Service over HTTP before reading/writing a booking.
   license:
     name: MIT
     url: https://opensource.org/licenses/MIT
-  termsOfService: http://swagger.io/terms/
-  title: Go MVC API
+  title: HelpMe Booking Service API
   version: "1.0"
 paths:
-  /auth/login:
-    post:
-      consumes:
-      - application/json
-      description: Authenticate with email and password, receive a JWT bearer token
+  /bookings:
+    get:
+      description: Looks up the owning user via the User Service, then lists their
+        bookings from Postgres
       parameters:
-      - description: Login credentials
-        in: body
-        name: body
+      - description: User UUID
+        in: query
+        name: user_id
         required: true
-        schema:
-          $ref: '#/definitions/services.LoginInput'
+        type: string
       produces:
       - application/json
       responses:
@@ -132,57 +114,80 @@ paths:
             - $ref: '#/definitions/helpers.Response'
             - properties:
                 data:
-                  $ref: '#/definitions/services.TokenResponse'
+                  properties:
+                    bookings:
+                      items:
+                        $ref: '#/definitions/models.Booking'
+                      type: array
+                    meta:
+                      $ref: '#/definitions/helpers.Meta'
+                    user:
+                      $ref: '#/definitions/clients.User'
+                  type: object
               type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/helpers.Response'
-        "401":
-          description: Unauthorized
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/helpers.Response'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/helpers.Response'
-      summary: Login
+      security:
+      - BearerAuth: []
+      summary: List bookings
       tags:
-      - Auth
-  /auth/signup:
+      - Bookings
     post:
       consumes:
       - application/json
-      description: Register a new account and receive a JWT token immediately
+      description: Creates a booking for a user, after verifying the user exists via
+        the User Service
       parameters:
-      - description: Registration payload
+      - description: User UUID
+        in: query
+        name: user_id
+        required: true
+        type: string
+      - description: Booking payload
         in: body
         name: body
         required: true
         schema:
-          $ref: '#/definitions/services.CreateUserInput'
+          $ref: '#/definitions/services.CreateBookingInput'
       produces:
       - application/json
       responses:
         "201":
           description: Created
           schema:
-            $ref: '#/definitions/helpers.Response'
+            allOf:
+            - $ref: '#/definitions/helpers.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/models.Booking'
+              type: object
         "400":
           description: Bad Request
           schema:
             $ref: '#/definitions/helpers.Response'
-        "409":
-          description: Conflict
+        "404":
+          description: Not Found
           schema:
             $ref: '#/definitions/helpers.Response'
         "500":
           description: Internal Server Error
           schema:
             $ref: '#/definitions/helpers.Response'
-      summary: Sign up
+      security:
+      - BearerAuth: []
+      summary: Create a booking
       tags:
-      - Auth
+      - Bookings
   /health:
     get:
       description: Returns service liveness and database connectivity status
@@ -200,190 +205,6 @@ paths:
       summary: Health check
       tags:
       - Health
-  /users:
-    get:
-      description: Paginated list of all users
-      parameters:
-      - default: 1
-        description: Page number
-        in: query
-        name: page
-        type: integer
-      - default: 10
-        description: Items per page
-        in: query
-        name: page_size
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/helpers.Response'
-            - properties:
-                data:
-                  items:
-                    $ref: '#/definitions/models.User'
-                  type: array
-                meta:
-                  $ref: '#/definitions/helpers.Meta'
-              type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/helpers.Response'
-      security:
-      - BearerAuth: []
-      summary: List users
-      tags:
-      - Users
-    post:
-      consumes:
-      - application/json
-      description: Register a new user account
-      parameters:
-      - description: User payload
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/services.CreateUserInput'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            allOf:
-            - $ref: '#/definitions/helpers.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.User'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "409":
-          description: Conflict
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/helpers.Response'
-      summary: Create a user
-      tags:
-      - Users
-  /users/{id}:
-    delete:
-      description: Soft-delete a user by UUID
-      parameters:
-      - description: User UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/helpers.Response'
-      security:
-      - BearerAuth: []
-      summary: Delete user
-      tags:
-      - Users
-    get:
-      description: Fetch a single user by UUID
-      parameters:
-      - description: User UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/helpers.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.User'
-              type: object
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/helpers.Response'
-      security:
-      - BearerAuth: []
-      summary: Get user by ID
-      tags:
-      - Users
-    patch:
-      consumes:
-      - application/json
-      description: Partially update a user's fields
-      parameters:
-      - description: User UUID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Fields to update
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/services.UpdateUserInput'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            allOf:
-            - $ref: '#/definitions/helpers.Response'
-            - properties:
-                data:
-                  $ref: '#/definitions/models.User'
-              type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/helpers.Response'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/helpers.Response'
-      security:
-      - BearerAuth: []
-      summary: Update user
-      tags:
-      - Users
 securityDefinitions:
   BearerAuth:
     description: Type "Bearer" followed by a space and your JWT token.

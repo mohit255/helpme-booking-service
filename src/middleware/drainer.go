@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yourorg/go-mvc-app/src/helpers"
+	"go-helpme-booking/src/helpers"
 )
 
 // Drainer tracks in-flight requests and blocks new ones once Drain is called.

@@ -1,9 +1,9 @@
 package database
 
 import (
-	"github.com/yourorg/go-mvc-app/src/config"
-	"github.com/yourorg/go-mvc-app/src/models"
-	"github.com/yourorg/go-mvc-app/src/utils/logger"
+	"go-helpme-booking/src/config"
+	"go-helpme-booking/src/models"
+	"go-helpme-booking/src/utils/logger"
 	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -38,7 +38,7 @@ func Connect() {
 }
 
 func Migrate() {
-	if err := DB.AutoMigrate(&models.User{}); err != nil {
+	if err := DB.AutoMigrate(&models.Booking{}); err != nil {
 		logger.Fatal("auto-migration failed", zap.Error(err))
 	}
 	logger.Info("database migration complete")

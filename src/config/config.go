@@ -16,6 +16,7 @@ type Config struct {
 	Database DatabaseConfig
 	API      APIConfig
 	JWT      JWTConfig
+	Services ServicesConfig
 }
 
 type AppConfig struct {
@@ -46,6 +47,16 @@ type APIConfig struct {
 type JWTConfig struct {
 	Secret      string
 	ExpiryHours int
+}
+
+// ServicesConfig holds base URLs/timeouts for internal HTTP calls to sibling microservices.
+type ServicesConfig struct {
+	UserService ServiceConfig
+}
+
+type ServiceConfig struct {
+	BaseURL string
+	Timeout int
 }
 
 var App *Config
@@ -89,6 +100,7 @@ func Load(envFile string) {
 	defaults := getEnvDefaults(env)
 	timeout, _ := strconv.Atoi(getEnv("EXTERNAL_API_TIMEOUT", strconv.Itoa(defaults.APITimeout)))
 	expiryHours, _ := strconv.Atoi(getEnv("JWT_EXPIRY_HOURS", strconv.Itoa(defaults.JWTExpiry)))
+	userSvcTimeout, _ := strconv.Atoi(getEnv("USER_SERVICE_TIMEOUT", strconv.Itoa(defaults.APITimeout)))
 
 	corsRaw := getEnv("CORS_ORIGINS", "*")
 	var corsOrigins []string
@@ -124,6 +136,12 @@ func Load(envFile string) {
 		JWT: JWTConfig{
 			Secret:      getEnv("JWT_SECRET", ""),
 			ExpiryHours: expiryHours,
+		},
+		Services: ServicesConfig{
+			UserService: ServiceConfig{
+				BaseURL: getEnv("USER_SERVICE_BASE_URL", ""),
+				Timeout: userSvcTimeout,
+			},
 		},
 	}
 
