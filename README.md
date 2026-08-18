@@ -12,6 +12,7 @@ A Go REST API built with Gin, GORM (PostgreSQL), Zap logging, JWT auth, and Swag
 | PostgreSQL | 16+ | https://www.postgresql.org/download or via Docker |
 | `swag` CLI | latest | `make install-swag` |
 | `air` CLI | latest | `make install-air` *(only for live-reload dev)* |
+| User Service | reachable over HTTP | this service resolves `user_id` against it on every booking read/write |
 
 ---
 
@@ -52,6 +53,9 @@ EXTERNAL_API_KEY=your-api-key
 # JWT — required
 JWT_SECRET=your-jwt-secret
 
+# User Service — required; booking reads/writes resolve user_id against it
+USER_SERVICE_BASE_URL=http://localhost:8081
+
 # CORS — comma-separated origins, or * for dev
 CORS_ORIGINS=*
 
@@ -59,57 +63,64 @@ CORS_ORIGINS=*
 LOGS_TARGETS=files,console
 ```
 
-> Optional overrides (`DB_PORT`, `DB_SSLMODE`, `DB_TIMEZONE`, `EXTERNAL_API_TIMEOUT`, `JWT_EXPIRY_HOURS`) are commented out in `.env.example` — uncomment to use.
+> Optional overrides (`DB_PORT`, `DB_SSLMODE`, `DB_TIMEZONE`, `EXTERNAL_API_TIMEOUT`, `JWT_EXPIRY_HOURS`, `USER_SERVICE_TIMEOUT`) are commented out in `.env.example` — uncomment to use.
+>
+> `USER_SERVICE_BASE_URL` must point to a running instance of the User Service — booking endpoints call `GET {USER_SERVICE_BASE_URL}/api/v1/users/{id}` to validate `user_id` before reading/writing a booking.
 
 ---
 
-## 3 — Start PostgreSQL
+## 3 — Run the app
 
-**Option A — Docker (recommended for local dev)**
+Pick one path — both end with the API on `localhost:8080`.
+
+### Option A — With Docker (app + db together)
+
+No local Go toolchain, Postgres, or `swag`/`air` install needed.
+
+```bash
+docker compose up --build
+```
+
+The `app` service reads `.env` automatically (`DB_HOST` is overridden to `db` internally) and waits for Postgres to be healthy before starting.
+
+> `USER_SERVICE_BASE_URL` still needs to point somewhere reachable from inside the container — `http://localhost:8081` won't resolve from `app`. Point it at the User Service's container/network address (e.g. `http://host.docker.internal:8081` if it runs on your host, or its service name if it's on the same Docker network).
+
+### Option B — Without Docker (local Go toolchain)
+
+**a. Start PostgreSQL**
+
+Docker for just the DB (recommended):
 
 ```bash
 docker compose up db -d
 ```
 
-This starts Postgres 16 on port `5432` with DB `gomvc_dev` / user `postgres` / password `postgres`.
-Update `.env` to match if you changed those values.
+Starts Postgres 16 on port `5432` with DB `gomvc_dev` / user `postgres` / password `postgres`. Update `.env` to match if you changed those values.
 
-**Option B — Local Postgres**
-
-Create the database manually:
+Or, fully local (no Docker at all) — create the database manually:
 
 ```bash
 psql -U postgres -c "CREATE DATABASE gomvc_dev;"
 ```
 
----
-
-## 4 — Run the app
-
-### Development (one-shot)
-
-Regenerates Swagger docs then starts the server:
+**b. Install Go tooling** (skip if already done)
 
 ```bash
-make dev
+make tidy
+make install-swag
+make install-air     # only needed for live-reload
 ```
 
-### Development with live reload
-
-Watches `.go`, `.toml`, and `.env` files — rebuilds and restarts on every save:
+**c. Run the server**
 
 ```bash
-make watch
+make dev             # one-shot: regen swagger + build + run (dev env)
+make watch           # live-reload — rebuilds on every save
+make qa              # APP_ENV=qa
+make prod            # APP_ENV=prod
 ```
 
-### Other environments
-
-```bash
-make qa    # APP_ENV=qa
-make prod  # APP_ENV=prod
-```
-
-### Build a binary
+Or build a standalone binary:
 
 ```bash
 make build
@@ -118,7 +129,7 @@ make build
 
 ---
 
-## 5 — Verify it's running
+## 4 — Verify it's running
 
 ```bash
 curl http://localhost:8080/health
@@ -132,22 +143,13 @@ http://localhost:8080/swagger/index.html
 
 ---
 
-## 6 — Run with Docker Compose (app + db together)
-
-```bash
-docker compose up --build
-```
-
-The `app` service reads `.env` automatically and waits for Postgres to be healthy before starting.
-
----
-
 ## Project structure
 
 ```
 src/
   cmd/            # Entry point (main.go)
   config/         # Env loading, common constants
+  clients/        # HTTP clients for sibling services (e.g. User Service)
   controllers/    # HTTP handlers
   services/       # Business logic
   repositories/   # DB layer (GORM)
