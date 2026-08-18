@@ -7,8 +7,6 @@
 # Compiled binaries
 bin/
 dist/
-main
-cmd
 *.exe
 *.out
 
