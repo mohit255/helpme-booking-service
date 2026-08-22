@@ -38,7 +38,38 @@ func Connect() {
 }
 
 func Migrate() {
-	if err := DB.AutoMigrate(&models.Booking{}); err != nil {
+	// Order matters: GORM creates tables (and their FK constraints) in the
+	// order given, so every referenced table must appear before the table
+	// that references it.
+	if err := DB.AutoMigrate(
+		&models.Booking{}, // existing single-sided booking table — unrelated to the marketplace schema below
+
+		// Marketplace schema (services-marketplace-hld.docx) — identity & roster
+		&models.User{},
+		&models.Address{},
+		&models.Category{},
+		&models.Employer{},
+		&models.Employee{},
+		&models.Client{},
+
+		// Category taxonomy / pricing / skills
+		&models.EmployeeCategory{},
+		&models.CategoryPricing{},
+
+		// Automation (referenced by KycVerification)
+		&models.AutomationJob{},
+
+		// Booking lifecycle
+		&models.ServiceRequest{},
+		&models.BookingAssignmentAttempt{},
+		&models.Payment{},
+		&models.Review{},
+		&models.EmployeeAvailability{},
+
+		// KYC
+		&models.KycVerification{},
+		&models.KycDocument{},
+	); err != nil {
 		logger.Fatal("auto-migration failed", zap.Error(err))
 	}
 	logger.Info("database migration complete")

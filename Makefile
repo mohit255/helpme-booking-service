@@ -1,4 +1,4 @@
-.PHONY: dev watch qa prod swagger tidy build install-swag install-air
+.PHONY: dev watch qa prod swagger tidy build migrate install-swag install-air
 
 DIST := dist/server
 
@@ -44,3 +44,7 @@ prod: swagger
 build: swagger
 	@mkdir -p dist
 	go build -o $(DIST) ./src/cmd/main.go
+
+## Run DB migrations only, then exit (no server, no port bind)
+migrate:
+	go run ./src/cmd/main.go --migrate

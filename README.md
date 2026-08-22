@@ -69,7 +69,26 @@ LOGS_TARGETS=files,console
 
 ---
 
-## 3 — Run the app
+## 3 — Run database migrations
+
+Migrations do **not** run automatically when the server starts — they're a separate, explicit step (`database.Migrate()` only runs behind the `--migrate` flag in `src/cmd/main.go`). Run this once after Postgres is up and `.env` is configured, and again any time models change.
+
+```bash
+make migrate
+# equivalent to:
+go run ./src/cmd/main.go --migrate
+```
+
+This connects to the DB, runs `AutoMigrate` for every model registered in `src/utils/database/database.go`, then exits — no port is bound, no HTTP server starts.
+
+> **Docker:** the `app` container's `CMD` runs the server directly, not `--migrate`. Run migrations as a one-off container against the same env before (or after) `docker compose up`:
+> ```bash
+> docker compose run --rm app ./server --migrate
+> ```
+
+---
+
+## 4 — Run the app
 
 Pick one path — both end with the API on `localhost:8080`.
 
@@ -129,10 +148,10 @@ make build
 
 ---
 
-## 4 — Verify it's running
+## 5 — Verify it's running
 
 ```bash
-curl http://localhost:8080/health
+curl http://localhost:8080/api/v1/health
 ```
 
 Swagger UI is available at:
@@ -164,6 +183,19 @@ logs/             # Log output (when LOGS_TARGETS=files)
 
 ---
 
+## Database schema
+
+Two schemas currently live side by side in the same Postgres database:
+
+- **`bookings`** — the original single-sided booking table (`src/models/booking.go`), wired to the live `/api/v1/bookings` API.
+- **Marketplace schema** — a fuller two-sided hiring-platform design (clients, employers/agencies, employees, categories, matching, payments, reviews, KYC) translated from `services-marketplace-hld.docx` into GORM models under `src/models/`. Not yet wired to any API. Tables: `marketplace_users`, `addresses`, `categories`, `employers`, `employees`, `clients`, `employee_categories`, `category_pricing`, `automation_jobs`, `service_requests`, `booking_assignment_attempts`, `payments`, `reviews`, `employee_availability`, `kyc_verifications`, `kyc_documents`.
+
+> **Why `marketplace_users` and not `users`:** this database already has a live `users` table (UUID id, name/email/password/role) owned by the existing User Service (`src/clients/user_http_client.go`) — real rows, not to be touched. The marketplace design's own `users` table (phone-OTP, bigint id) is a different, incompatible shape for the same concept, so it's kept as a separate table until the two are reconciled.
+
+See `docs/HLD-service-hiring-platform.md` for the extension design and rollout phasing.
+
+---
+
 ## Makefile targets
 
 | Target | Description |
@@ -174,6 +206,7 @@ logs/             # Log output (when LOGS_TARGETS=files)
 | `make qa` | Run with `APP_ENV=qa` |
 | `make prod` | Run with `APP_ENV=prod` |
 | `make build` | Compile binary to `dist/server` |
+| `make migrate` | Run DB migrations only, then exit (no server, no port bind) |
 | `make swagger` | Regenerate Swagger docs only |
 | `make install-swag` | Install `swag` CLI (one-time) |
 | `make install-air` | Install `air` CLI (one-time) |
